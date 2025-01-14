@@ -1,0 +1,5 @@
+prometheus-client
+Flask
+Flask-JSON
+Flask-Cors
+gevent

@@ -1,61 +1,32 @@
-# Flask Project
+# Prometheus Exporter
 
-This project is a Flask application designed to receive and process `DataBuriedPoint` data into a structured format called `data_buried_point`.
+## Dev
 
-## Project Structure
+pip install -r ./requirements
+
+
+## Using Docker
+
+```bash
+
+docker build -t prometheus-exporter .
+docker run -p 5000:5000 -p 8022:8022 prometheus-exporter
 
 ```
-flask-project
-├── app
-│   ├── __init__.py
-│   ├── main.py
-│   ├── controllers
-│   │   └── data_controller.py
-│   ├── models
-│   │   └── data_buried_point.py
-│   └── services
-│       └── data_service.py
-├── requirements.txt
-└── README.md
+
+8022是prometheus pull的端口
+5000是data_buried_point API使用的端口
+
+
+## API Test
+
+```bash
+
+curl --location 'http://localhost:5000/data_buried_point' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name" : "test_buried_point_2",
+    "doc" : "test_buried_point_2_doc"
+}'
+
 ```
-
-## Setup Instructions
-
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd flask-project
-   ```
-
-2. Create a virtual environment:
-   ```
-   python -m venv venv
-   ```
-
-3. Activate the virtual environment:
-   - On Windows:
-     ```
-     venv\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```
-     source venv/bin/activate
-     ```
-
-4. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-To run the application, execute the following command:
-```
-python app/main.py
-```
-
-The server will start, and you can send requests to the endpoints defined in the `data_controller.py` file to process `DataBuriedPoint` data.
-
-## Contributing
-
-Feel free to submit issues or pull requests for improvements or bug fixes.

@@ -29,9 +29,11 @@ class COUNTER_MIX:
     def __init__(self, name, doc):
         self.pv_counter = Counter(f'pv_{name}', doc)
         self.uv_counter = Counter(f'uv_{name}', doc)
+        self.new_usr_counter = Counter(f'new_usr_{name}', doc)
 
 COUNTER_MAP: dict[str, COUNTER_MIX] = {}
 VISITED_IPS: dict[str, str] = {}
+ALL_UNIQUE_IPS: set[str] = set()
 
 def clear_old_ips():
     current_date = datetime.now()
@@ -62,6 +64,10 @@ def data_buried_point():
 
         if not visited_before:
             COUNTER_MAP[name].uv_counter.inc()
+        
+        if client_ip not in ALL_UNIQUE_IPS:
+            COUNTER_MAP[name].new_usr_counter.inc()
+            ALL_UNIQUE_IPS.add(client_ip)
 
         return json_response(msg='ok', visited_before=visited_before)
 

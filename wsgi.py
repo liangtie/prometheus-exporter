@@ -75,13 +75,13 @@ def data_buried_point():
         if name not in COUNTER_MAP:
             COUNTER_MAP[name] = COUNTER_MIX(name, doc)
 
-        COUNTER_MAP[name].pv_counter.inc(exemplar)
+        COUNTER_MAP[name].pv_counter.inc(1 ,exemplar)
 
         if not visited_before:
-            COUNTER_MAP[name].uv_counter.inc(exemplar)
+            COUNTER_MAP[name].uv_counter.inc(1, exemplar)
         
         if client_ip not in ALL_UNIQUE_IPS:
-            COUNTER_MAP[name].new_usr_counter.inc(exemplar)
+            COUNTER_MAP[name].new_usr_counter.inc(1, exemplar)
             ALL_UNIQUE_IPS.add(client_ip)
 
         return json_response(msg='ok', visited_before=visited_before)

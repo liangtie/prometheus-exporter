@@ -1,3 +1,4 @@
+from typing import Optional, Dict
 from flask_json import FlaskJSON, JsonError, json_response, as_json
 from flask import Flask, request
 from flask_cors import CORS
@@ -21,11 +22,23 @@ def get_value():
 class DataBuriedPoint:
     name: str
     doc: str
-    exemplar: 'dict[str, str]'
+    exemplar: 'Optional[dict[str, str]]'
 
 def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
-    return DataBuriedPoint(**json_obj)
+    if not isinstance(json_obj, dict):
+        raise ValueError("Input must be a dictionary.")
 
+    name = json_obj.get("name")
+    doc = json_obj.get("doc")
+    exemplar = json_obj.get("exemplar")
+
+    if not isinstance(name, str) or not isinstance(doc, str):
+        raise ValueError("Fields 'name' and 'doc' must be strings.")
+
+    if exemplar is not None and not isinstance(exemplar, dict):
+        raise ValueError("Field 'exemplar' must be a dictionary or None.")
+
+    return DataBuriedPoint(name=name, doc=doc, exemplar=exemplar)
 class COUNTER_MIX:
     def __init__(self, name, doc):
         self.pv_counter = Counter(f'pv_{name}', doc)

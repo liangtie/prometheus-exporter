@@ -18,11 +18,20 @@ json = FlaskJSON(app)
 def get_value():
     return dict(value=12)
 
+
+@dataclass
+class Exemplar :
+    href :str
+    search : str
+
 @dataclass
 class DataBuriedPoint:
     name: str
     doc: str
-    exemplar: 'Optional[dict[str, str]]'
+    source : 'Optional[str]' = None
+
+
+EDA_CN_LABELS =  ['from']
 
 def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
     if not isinstance(json_obj, dict):
@@ -30,20 +39,20 @@ def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
 
     name = json_obj.get("name")
     doc = json_obj.get("doc")
-    exemplar = json_obj.get("exemplar")
+    source = json_obj.get("source")
 
     if not isinstance(name, str) or not isinstance(doc, str):
         raise ValueError("Fields 'name' and 'doc' must be strings.")
 
-    if exemplar is not None and not isinstance(exemplar, dict):
-        raise ValueError("Field 'exemplar' must be a dictionary or None.")
+    if source is not None and not isinstance(source, str):
+        raise ValueError("Field 'exemplar' must be dict.")
 
-    return DataBuriedPoint(name=name, doc=doc, exemplar=exemplar)
+    return DataBuriedPoint(name=name, doc=doc, source=source)
 class COUNTER_MIX:
     def __init__(self, name, doc):
-        self.pv_counter = Counter(f'pv_{name}', doc)
-        self.uv_counter = Counter(f'uv_{name}', doc)
-        self.new_usr_counter = Counter(f'new_usr_{name}', doc)
+        self.pv_counter = Counter(f'pv_{name}', doc ,EDA_CN_LABELS)
+        self.uv_counter = Counter(f'uv_{name}', doc, EDA_CN_LABELS)
+        self.new_usr_counter = Counter(f'new_usr_{name}', doc , EDA_CN_LABELS)
 
 COUNTER_MAP: dict[str, COUNTER_MIX] = {}
 VISITED_IPS: dict[str, str] = {}
@@ -70,18 +79,22 @@ def data_buried_point():
         data_buried_point = json_to_databuriedpoint(data)
         name = data_buried_point.name
         doc = data_buried_point.doc
-        exemplar = data_buried_point.exemplar
+        source = data_buried_point.source
+
+        if source is None or source == '':
+            source = 'self'
 
         if name not in COUNTER_MAP:
             COUNTER_MAP[name] = COUNTER_MIX(name, doc)
 
-        COUNTER_MAP[name].pv_counter.inc(1 ,exemplar)
+
+        COUNTER_MAP[name].pv_counter.labels(source).inc()
 
         if not visited_before:
-            COUNTER_MAP[name].uv_counter.inc(1, exemplar)
+            COUNTER_MAP[name].uv_counter.labels( source).inc()
         
         if client_ip not in ALL_UNIQUE_IPS:
-            COUNTER_MAP[name].new_usr_counter.inc(1, exemplar)
+            COUNTER_MAP[name].new_usr_counter.labels( source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
         return json_response(msg='ok', visited_before=visited_before)

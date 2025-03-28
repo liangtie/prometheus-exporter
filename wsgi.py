@@ -61,7 +61,7 @@ ALL_UNIQUE_IPS: set[str] = set()
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
     data = request.get_json(force=True)
-    client_ip = request.remote_addr
+    client_ip = request.headers.get('X-Real-IP')
     current_date = datetime.now().strftime('%Y-%m-%d')
     visited_before = VISITED_IPS.get(client_ip) == current_date
     VISITED_IPS[client_ip] = current_date

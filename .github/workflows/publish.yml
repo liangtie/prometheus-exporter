@@ -12,19 +12,22 @@ jobs:
   publish-prometheus-exporter:
     runs-on: ubuntu-latest
     steps:
+      - name: Get latest tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: liangtie/prometheus-exporter
+          releases-only: true
+        id: latest-release
+
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Get version from Git tags
-        id: get_version
-        run: echo "version=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: registry.cn-shanghai.aliyuncs.com/liangtie/prometheus-exporter
-          tags: ${{ env.version }}
+          tags: ${{ steps.latest-release.outputs.tag }}
 
       - name: Login to aliyun
         uses: docker/login-action@v3

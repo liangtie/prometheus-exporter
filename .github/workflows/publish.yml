@@ -25,7 +25,6 @@ jobs:
         with:
           images: registry.cn-shanghai.aliyuncs.com/liangtie/prometheus-exporter
           tags: |
-            latest
             ${{ env.version }}
 
       - name: Login to aliyun

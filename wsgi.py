@@ -6,6 +6,8 @@ import os
 from prometheus_client import start_http_server, Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+import threading
+import time
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -55,16 +57,20 @@ class COUNTER_MIX:
         self.new_usr_counter = Counter(f'new_usr_{name}', doc , EDA_CN_LABELS)
 
 COUNTER_MAP: dict[str, COUNTER_MIX] = {}
-VISITED_IPS: dict[str, str] = {}
+SOURCE_VISITED_IPS: dict[str, set[str]] = {}
 ALL_UNIQUE_IPS: set[str] = set()
+
+def clear_visited_ips_daily():
+    """Clears the VISITED_IPS dictionary every day."""
+    while True:
+        time.sleep(24 * 60 * 60)  # Sleep for 24 hours
+        SOURCE_VISITED_IPS.clear()
+        print("Cleared VISITED_IPS")
 
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
     data = request.get_json(force=True)
     client_ip = request.headers.get('X-Real-IP')
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    visited_before = VISITED_IPS.get(client_ip) == current_date
-    VISITED_IPS[client_ip] = current_date
 
     try:
         data_buried_point = json_to_databuriedpoint(data)
@@ -72,8 +78,18 @@ def data_buried_point():
         doc = data_buried_point.doc
         source = data_buried_point.source
 
+        if source not in SOURCE_VISITED_IPS:
+            SOURCE_VISITED_IPS[source] = set()
+
+
         if source is None or source == '':
             source = 'self'
+
+        source_today_visited = client_ip in SOURCE_VISITED_IPS.get(source)
+        
+        if not source_today_visited:
+            SOURCE_VISITED_IPS[source].add(client_ip)
+
 
         if name not in COUNTER_MAP:
             COUNTER_MAP[name] = COUNTER_MIX(name, doc)
@@ -81,14 +97,14 @@ def data_buried_point():
 
         COUNTER_MAP[name].pv_counter.labels(source).inc()
 
-        if not visited_before:
+        if not source_today_visited:
             COUNTER_MAP[name].uv_counter.labels( source).inc()
         
         if client_ip not in ALL_UNIQUE_IPS:
             COUNTER_MAP[name].new_usr_counter.labels( source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
-        return json_response(msg='ok', visited_before=visited_before ,remote_addr = request.remote_addr  , visited_ips = VISITED_IPS , unique_ips = ALL_UNIQUE_IPS  )
+        return json_response(msg='ok', visited_before=source_today_visited ,remote_addr = request.remote_addr  , visited_ips = VISITED_IPS , unique_ips = ALL_UNIQUE_IPS  )
 
     except Exception as e:
         raise JsonError(description= str(e))

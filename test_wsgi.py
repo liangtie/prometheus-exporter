@@ -1,6 +1,6 @@
 import unittest
 from flask import json
-from wsgi import app, VISITED_IPS, COUNTER_MAP
+from wsgi import app, SOURCE_VISITED_IPS, COUNTER_MAP
 from datetime import datetime
 class DataBuriedPointTestCase(unittest.TestCase):
     def setUp(self):
@@ -8,7 +8,7 @@ class DataBuriedPointTestCase(unittest.TestCase):
         self.app.testing = True
 
     def tearDown(self):
-        VISITED_IPS.clear()
+        SOURCE_VISITED_IPS.clear()
         COUNTER_MAP.clear()
 
     def test_data_buried_point_first_visit(self):

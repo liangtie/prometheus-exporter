@@ -1,11 +1,10 @@
-from typing import Optional, Dict
+from typing import Optional
 from flask_json import FlaskJSON, JsonError, json_response, as_json
 from flask import Flask, request
 from flask_cors import CORS
 import os
 from prometheus_client import start_http_server, Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 import threading
 import time
 
@@ -67,6 +66,9 @@ def clear_visited_ips_daily():
         SOURCE_VISITED_IPS.clear()
         print("Cleared VISITED_IPS")
 
+# Start the background thread to clear VISITED_IPS daily
+threading.Thread(target=clear_visited_ips_daily, daemon=True).start()        
+
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
     data = request.get_json(force=True)
@@ -78,12 +80,11 @@ def data_buried_point():
         doc = data_buried_point.doc
         source = data_buried_point.source
 
-        if source not in SOURCE_VISITED_IPS:
-            SOURCE_VISITED_IPS[source] = set()
-
-
         if source is None or source == '':
             source = 'self'
+
+        if source not in SOURCE_VISITED_IPS:
+            SOURCE_VISITED_IPS[source] = set()            
 
         source_today_visited = client_ip in SOURCE_VISITED_IPS.get(source)
         
@@ -104,7 +105,7 @@ def data_buried_point():
             COUNTER_MAP[name].new_usr_counter.labels( source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
-        return json_response(msg='ok', visited_before=source_today_visited ,remote_addr = request.remote_addr  , visited_ips = VISITED_IPS , unique_ips = ALL_UNIQUE_IPS  )
+        return json_response(msg='ok', visited_before=source_today_visited ,client_ip = client_ip  , source_visited_ips = SOURCE_VISITED_IPS , unique_ips = ALL_UNIQUE_IPS  )
 
     except Exception as e:
         raise JsonError(description= str(e))

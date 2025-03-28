@@ -50,25 +50,17 @@ def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
     return DataBuriedPoint(name=name, doc=doc, source=source)
 class COUNTER_MIX:
     def __init__(self, name, doc):
-        self.pv_counter = Counter(f'pv_{name}', doc ,EDA_CN_LABELS)
-        self.uv_counter = Counter(f'uv_{name}', doc, EDA_CN_LABELS)
-        self.new_usr_counter = Counter(f'new_usr_{name}', doc , EDA_CN_LABELS)
+        self.pv_counter = Counter(f'pv_{name}', f'pv_{doc}' ,EDA_CN_LABELS)
+        self.uv_counter = Counter(f'uv_{name}', f'uv_{doc}', EDA_CN_LABELS)
+        self.uv_counter = Counter(f'uv_{name}', f'uv_{doc}', EDA_CN_LABELS)
+        self.new_usr_counter = Counter(f'new_usr_{name}', f'new_usr_{doc}' , EDA_CN_LABELS)
 
 COUNTER_MAP: dict[str, COUNTER_MIX] = {}
 VISITED_IPS: dict[str, str] = {}
 ALL_UNIQUE_IPS: set[str] = set()
 
-def clear_old_ips():
-    current_date = datetime.now()
-    cutoff_date = current_date - timedelta(days=3)
-    for ip, date_str in list(VISITED_IPS.items()):
-        visit_date = datetime.strptime(date_str, '%Y-%m-%d')
-        if visit_date < cutoff_date:
-            del VISITED_IPS[ip]
-
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
-    clear_old_ips()
     data = request.get_json(force=True)
     client_ip = request.remote_addr
     current_date = datetime.now().strftime('%Y-%m-%d')
@@ -97,7 +89,7 @@ def data_buried_point():
             COUNTER_MAP[name].new_usr_counter.labels( source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
-        return json_response(msg='ok', visited_before=visited_before)
+        return json_response(msg='ok', visited_before=visited_before ,remote_addr = request.remote_addr  )
 
     except Exception as e:
         raise JsonError(description= str(e))

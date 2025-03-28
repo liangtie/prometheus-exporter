@@ -24,8 +24,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: registry.cn-shanghai.aliyuncs.com/liangtie/prometheus-exporter
-          tags: |
-            ${{ env.version }}
+          tags: ${{ env.version }}
 
       - name: Login to aliyun
         uses: docker/login-action@v3

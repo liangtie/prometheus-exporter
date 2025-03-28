@@ -1,8 +1,9 @@
 name: Publish to Docker
-on:
-  push:
-    branches:
-      - main
+on: # yamllint disable-line rule:truthy
+  release:
+    branches: main
+    types:
+      - published
   workflow_dispatch:
 
 permissions:

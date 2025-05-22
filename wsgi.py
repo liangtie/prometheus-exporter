@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional
 from flask_json import FlaskJSON, JsonError, json_response, as_json
 from flask import Flask, request
@@ -14,6 +15,7 @@ app = Flask(__name__, template_folder='templates')
 CORS(app)
 json = FlaskJSON(app)
 
+
 @app.route('/get_value')
 @as_json
 def get_value():
@@ -21,18 +23,20 @@ def get_value():
 
 
 @dataclass
-class Exemplar :
-    href :str
-    search : str
+class Exemplar:
+    href: str
+    search: str
+
 
 @dataclass
 class DataBuriedPoint:
     name: str
     doc: str
-    source : 'Optional[str]' = None
+    source: 'Optional[str]' = None
 
 
-EDA_CN_LABELS =  ['from']
+EDA_CN_LABELS = ['from']
+
 
 def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
     if not isinstance(json_obj, dict):
@@ -49,15 +53,23 @@ def json_to_databuriedpoint(json_obj) -> DataBuriedPoint:
         raise ValueError("Field 'exemplar' must be dict.")
 
     return DataBuriedPoint(name=name, doc=doc, source=source)
+
+
 class COUNTER_MIX:
     def __init__(self, name, doc):
-        self.pv_counter = Counter(f'pv_{name}', doc ,EDA_CN_LABELS)
+        self.pv_counter = Counter(f'pv_{name}', doc, EDA_CN_LABELS)
         self.uv_counter = Counter(f'uv_{name}', doc, EDA_CN_LABELS)
-        self.new_usr_counter = Counter(f'new_usr_{name}', doc , EDA_CN_LABELS)
+        self.new_usr_counter = Counter(f'new_usr_{name}', doc, EDA_CN_LABELS)
+        self.mau_counter = Counter(f'mau_{name}', doc, EDA_CN_LABELS)  # 新增月活计数器
+
 
 COUNTER_MAP: dict[str, COUNTER_MIX] = {}
 SOURCE_VISITED_IPS: dict[str, set[str]] = {}
 ALL_UNIQUE_IPS: set[str] = set()
+
+SOURCE_VISITED_IPS_MONTHLY: dict[str, set[str]] = {}
+ALL_UNIQUE_IPS_MONTHLY: set[str] = set()
+
 
 def clear_visited_ips_daily():
     """Clears the VISITED_IPS dictionary every day."""
@@ -66,8 +78,27 @@ def clear_visited_ips_daily():
         SOURCE_VISITED_IPS.clear()
         print("Cleared VISITED_IPS")
 
+
 # Start the background thread to clear VISITED_IPS daily
-threading.Thread(target=clear_visited_ips_daily, daemon=True).start()        
+threading.Thread(target=clear_visited_ips_daily, daemon=True).start()
+
+
+def clear_visited_ips_monthly():
+    """Clears the VISITED_IPS_MONTHLY dictionary on the first day of each month."""
+    while True:
+        now = datetime.datetime.now()
+        # Calculate seconds until next month's first day
+        next_month = (now.replace(day=28) + datetime.timedelta(days=4)).replace(day=1, hour=0, minute=0, second=0)
+        time_to_sleep = (next_month - now).total_seconds()
+        time.sleep(time_to_sleep)
+
+        SOURCE_VISITED_IPS_MONTHLY.clear()
+        print("Cleared VISITED_IPS_MONTHLY")
+
+
+# Start the background thread to clear VISITED_IPS_MONTHLY monthly
+threading.Thread(target=clear_visited_ips_monthly, daemon=True).start()
+
 
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
@@ -84,34 +115,43 @@ def data_buried_point():
             source = 'self'
 
         if source not in SOURCE_VISITED_IPS:
-            SOURCE_VISITED_IPS[source] = set()            
+            SOURCE_VISITED_IPS[source] = set()
 
         source_today_visited = client_ip in SOURCE_VISITED_IPS.get(source)
-        
+
         if not source_today_visited:
             SOURCE_VISITED_IPS[source].add(client_ip)
 
+        # 月活相关逻辑
+        if source not in SOURCE_VISITED_IPS_MONTHLY:
+            SOURCE_VISITED_IPS_MONTHLY[source] = set()
+        source_this_month_visited = client_ip in SOURCE_VISITED_IPS_MONTHLY.get(source)
+        if not source_this_month_visited:
+            SOURCE_VISITED_IPS_MONTHLY[source].add(client_ip)
+            COUNTER_MAP[name].mau_counter.labels(source).inc()
 
         if name not in COUNTER_MAP:
             COUNTER_MAP[name] = COUNTER_MIX(name, doc)
 
-
         COUNTER_MAP[name].pv_counter.labels(source).inc()
 
         if not source_today_visited:
-            COUNTER_MAP[name].uv_counter.labels( source).inc()
-        
+            COUNTER_MAP[name].uv_counter.labels(source).inc()
+
         if client_ip not in ALL_UNIQUE_IPS:
-            COUNTER_MAP[name].new_usr_counter.labels( source).inc()
+            COUNTER_MAP[name].new_usr_counter.labels(source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
-        return json_response(msg='ok', visited_before=source_today_visited ,client_ip = client_ip  , source_visited_ips = SOURCE_VISITED_IPS , unique_ips = ALL_UNIQUE_IPS  )
+        return json_response(msg='ok', visited_before=source_today_visited, client_ip=client_ip,
+                             source_visited_ips=SOURCE_VISITED_IPS, unique_ips=ALL_UNIQUE_IPS)
 
     except Exception as e:
-        raise JsonError(description= str(e))
+        raise JsonError(description=str(e))
+
 
 if __name__ == '__main__':
     from gevent import pywsgi
+
     start_http_server(8022)
     server = pywsgi.WSGIServer(('0.0.0.0', 5000), app)
     server.serve_forever()

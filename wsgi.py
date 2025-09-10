@@ -8,6 +8,8 @@ from prometheus_client import start_http_server, Counter
 from dataclasses import dataclass
 import threading
 import time
+import requests
+import json
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -100,10 +102,16 @@ def clear_visited_ips_monthly():
 threading.Thread(target=clear_visited_ips_monthly, daemon=True).start()
 
 
+LOG_URL= 'http://www.fdatasheets.com/api/chiplet/kicad/download/log'
+def send_log(channelCode : str , ip : str):
+    return requests.post(LOG_URL, json={'channelCode': channelCode, 'ip': ip}).json()
+
+
 @app.route('/data_buried_point', methods=['POST'])
 def data_buried_point():
     data = request.get_json(force=True)
-    client_ip = request.headers.get('X-Real-IP')
+    req_ip = request.headers.get('X-Real-IP') 
+    client_ip = req_ip if req_ip is not None else "unknown"
 
     try:
         data_buried_point = json_to_databuriedpoint(data)
@@ -142,8 +150,10 @@ def data_buried_point():
             COUNTER_MAP[name].new_usr_counter.labels(source).inc()
             ALL_UNIQUE_IPS.add(client_ip)
 
+        log_res = send_log(source, client_ip)
+
         return json_response(msg='ok', visited_before=source_today_visited, client_ip=client_ip,
-                             source_visited_ips=SOURCE_VISITED_IPS, unique_ips=ALL_UNIQUE_IPS)
+                             source_visited_ips=SOURCE_VISITED_IPS, unique_ips=ALL_UNIQUE_IPS , log_res=log_res)
 
     except Exception as e:
         raise JsonError(description=str(e))

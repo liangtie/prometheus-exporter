@@ -102,7 +102,7 @@ def clear_visited_ips_monthly():
 threading.Thread(target=clear_visited_ips_monthly, daemon=True).start()
 
 
-LOG_URL= 'http://www.fdatasheets.com/api/chiplet/kicad/download/log'
+LOG_URL= 'https://www.eda.cn/api/chiplet/kicad/download/log'
 def send_log(channelCode : str , ip : str):
     return requests.post(LOG_URL, json={'channelCode': channelCode, 'ip': ip}).json()
 
